@@ -1,8 +1,48 @@
 import Head from 'next/head';
-import Image from 'next/image';
 import styles from '../styles/Home.module.scss';
+import React, { useState } from 'react';
+import Image from 'next/image';
 
 export default function Home() {
+  const [input, setInput] = useState<string>();
+  const [items, setItems] = useState([]);
+
+  const searchItem = (e) => {
+    e.preventDefault();
+    const query = input;
+    const API_Request = `https://www.googleapis.com/customsearch/v1?key=AIzaSyCrZ3vlyw-wI84iyL5nEv3ccfsYQTd28VI&cx=1ddc7e60039f419f6&searchType=image&q=${query}&num=5&start=1`;
+
+    const getItemsData = async (): Promise<any> => {
+      const result = await fetch(API_Request, {
+        method: 'GET',
+      }).then((response) => response.json());
+      return result;
+    };
+
+    const fetchItemsData = async (): Promise<void> => {
+      console.log('test');
+      const itemsData = await getItemsData();
+      console.log(itemsData);
+      setItems(itemsData.items);
+    };
+    fetchItemsData();
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const target = e.target;
+    const name = target.name;
+    const value = target.value;
+    setInput(value);
+  };
+
+  const selectImage = (e) => {
+    const target = e.target;
+    const targetKey = target.attributes.getNamedItem('data-id').value;
+    console.log(target);
+    console.log(targetKey);
+    setItems([items[targetKey]]);
+  };
+
   return (
     <div className={styles.container}>
       <Head>
@@ -11,53 +51,28 @@ export default function Home() {
         <link rel='icon' href='/favicon.ico' />
       </Head>
       <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href='https://nextjs.org'>Next.js!</a>
-        </h1>
-
-        <p className={styles.description}>
-          Get started by editing <code className={styles.code}>pages/index.js</code>
-        </p>
-
-        <div className={styles.grid}>
-          <a href='https://nextjs.org/docs' className={styles.card}>
-            <h2>Documentation &rarr;</h2>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href='https://nextjs.org/learn' className={styles.card}>
-            <h2>Learn &rarr;</h2>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a href='https://github.com/vercel/next.js/tree/master/examples' className={styles.card}>
-            <h2>Examples &rarr;</h2>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href='https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app'
-            className={styles.card}
-          >
-            <h2>Deploy &rarr;</h2>
-            <p>Instantly deploy your Next.js site to a public URL with Vercel.</p>
-          </a>
+        <p>野菜を検索しよう</p>
+        <form>
+          <input type='text' onChange={handleInputChange} />
+          <button onClick={searchItem}>検索</button>
+        </form>
+        <div className={styles['image-container']}>
+          {items && items.length > 0 ? (
+            items.map((item, i) => (
+              <div
+                className={styles['refrigerator-image']}
+                key={i}
+                onClick={selectImage}
+                data-id={i}
+              >
+                <img src={item.image.thumbnailLink} />
+              </div>
+            ))
+          ) : (
+            <p>nothing</p>
+          )}
         </div>
       </main>
-
-      <a href=''>test</a>
-      <footer className={styles.footer}>
-        <a
-          href='https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app'
-          target='_blank'
-          rel='noopener noreferrer'
-        >
-          Powered by{' '}
-          <span className={styles.logo}>
-            <Image src='/vercel.svg' alt='Vercel Logo' width={72} height={16} />
-          </span>
-        </a>
-      </footer>
     </div>
   );
 }
