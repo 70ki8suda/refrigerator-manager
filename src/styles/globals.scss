@@ -1,3 +1,5 @@
+@use '@variables' as *;
+
 /*
 html5doctor.com Reset Stylesheet
 v1.6.1
@@ -184,4 +186,17 @@ a {
 * {
   box-sizing: border-box;
   font-feature-settings: 'palt';
+}
+
+input {
+  border: $main-color 1px solid;
+  border-radius: 4px;
+  font-size: 18px;
+  padding: 0.4em;
+  box-shadow: transparent 4px 4px 10px;
+  transition: box-shadow 0.3s;
+  &:focus {
+    outline: none;
+    box-shadow: #ddd 4px 4px 10px;
+  }
 }

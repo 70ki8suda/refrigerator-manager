@@ -1,16 +1,37 @@
 import Head from 'next/head';
 import styles from '../styles/Home.module.scss';
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Image from 'next/image';
 
+type fridgeItem = {
+  thumb: string;
+  name: string;
+  quantity?: string;
+  expiryDate?: Date;
+};
+
+type selectedItem = {
+  thumb: string;
+  name: string;
+  quantity?: string;
+  expiryDate?: Date;
+};
+
 export default function Home() {
-  const [input, setInput] = useState<string>();
-  const [items, setItems] = useState([]);
+  const [searchInput, setSearchInput] = useState<string>();
+  const [searchedItems, setSearchedItems] = useState([]);
+  const [selectedItems, setSelectedItems] = useState<selectedItem[]>([]);
+  const [fridgeItems, setFridgeItems] = useState<fridgeItem[]>([]);
+  const [modalFlag, setModalFlag] = useState(false);
+
+  const searchInputEl = useRef(null);
 
   const searchItem = (e) => {
     e.preventDefault();
-    const query = input;
-    const API_Request = `https://www.googleapis.com/customsearch/v1?key=AIzaSyCrZ3vlyw-wI84iyL5nEv3ccfsYQTd28VI&cx=1ddc7e60039f419f6&searchType=image&q=${query}&num=5&start=1`;
+    const query = searchInput;
+    const SEARCH_API_KEY = process.env.NEXT_PUBLIC_SEARCH_API_KEY;
+    const SEARCH_ENGINE_ID = process.env.NEXT_PUBLIC_SEARCH_ENGINE_ID;
+    const API_Request = `https://www.googleapis.com/customsearch/v1?key=${SEARCH_API_KEY}&cx=${SEARCH_ENGINE_ID}&searchType=image&imgType=photo&q=${query}&num=5&start=1`;
 
     const getItemsData = async (): Promise<any> => {
       const result = await fetch(API_Request, {
@@ -21,18 +42,44 @@ export default function Home() {
 
     const fetchItemsData = async (): Promise<void> => {
       console.log('test');
-      const itemsData = await getItemsData();
-      console.log(itemsData);
-      setItems(itemsData.items);
+      const searchedItemsData = await getItemsData();
+      console.log(searchedItemsData);
+      setSearchedItems(searchedItemsData.items);
     };
     fetchItemsData();
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const target = e.target;
-    const name = target.name;
     const value = target.value;
-    setInput(value);
+    setSearchInput(value);
+  };
+  const handleQuantityInputChange = (e, i: number) => {
+    const target = e.target;
+    const value = target.value;
+    const newItem: selectedItem = {
+      ...selectedItems[i],
+      quantity: value,
+    };
+    let updateSelectedItems = [...selectedItems];
+    updateSelectedItems[i] = newItem;
+    setSelectedItems([...updateSelectedItems]);
+  };
+  const handleDateInputChange = (e, i: number) => {
+    const target = e.target;
+    const value = target.value;
+    const newItem: selectedItem = {
+      ...selectedItems[i],
+      expiryDate: value,
+    };
+    let updateSelectedItems = [...selectedItems];
+    updateSelectedItems[i] = newItem;
+    setSelectedItems([...updateSelectedItems]);
+  };
+
+  const addItemToFridge = () => {
+    setFridgeItems([...fridgeItems, ...selectedItems]);
+    closeModal();
   };
 
   const selectImage = (e) => {
@@ -40,7 +87,25 @@ export default function Home() {
     const targetKey = target.attributes.getNamedItem('data-id').value;
     console.log(target);
     console.log(targetKey);
-    setItems([items[targetKey]]);
+    const newItem: selectedItem = {
+      name: searchInput,
+      thumb: searchedItems[targetKey].link,
+    };
+    setSelectedItems([...selectedItems, newItem]);
+    setSearchedItems([]);
+    //inputクリア
+    setSearchInput('');
+    searchInputEl.current.value = '';
+  };
+
+  const activateModal = () => {
+    setModalFlag(true);
+  };
+
+  const closeModal = () => {
+    setSearchedItems([]);
+    setSelectedItems([]);
+    setModalFlag(false);
   };
 
   return (
@@ -51,25 +116,97 @@ export default function Home() {
         <link rel='icon' href='/favicon.ico' />
       </Head>
       <main className={styles.main}>
-        <p>野菜を検索しよう</p>
-        <form>
-          <input type='text' onChange={handleInputChange} />
-          <button onClick={searchItem}>検索</button>
-        </form>
-        <div className={styles['image-container']}>
-          {items && items.length > 0 ? (
-            items.map((item, i) => (
-              <div
-                className={styles['refrigerator-image']}
-                key={i}
-                onClick={selectImage}
-                data-id={i}
-              >
-                <img src={item.image.thumbnailLink} />
+        <div className={styles['content']}>
+          <button className={styles['add-item']} onClick={activateModal}>
+            食材を追加
+          </button>
+
+          {!fridgeItems ||
+            (fridgeItems.length === 0 && (
+              <div className={styles['fridge-illust']}>
+                <div className={`${styles['box1']} ${modalFlag && styles['is-open']}`}>
+                  <div className={styles['box1-door']}></div>
+                </div>
+                <div className={styles['box2']}></div>
               </div>
-            ))
-          ) : (
-            <p>nothing</p>
+            ))}
+          <div className={`${styles['modal']} ${modalFlag && styles['modal--active']}`}>
+            <div className={styles['modal-close']} onClick={closeModal}>
+              <span className={styles['modal-close-stick']}></span>
+              <span className={styles['modal-close-stick']}></span>
+            </div>
+
+            <div className={styles['search-area']}>
+              <input
+                type='text'
+                onChange={handleSearchInputChange}
+                className={styles['search-input']}
+                ref={searchInputEl}
+                placeholder='食材の名前を入力'
+              />
+              <button onClick={searchItem} className={styles['search-button']}>
+                検索
+              </button>
+            </div>
+
+            <div className={styles['image-container']}>
+              {searchedItems &&
+                searchedItems.length > 0 &&
+                searchedItems.map((item, i) => (
+                  <div className={styles['select-image']} key={i} onClick={selectImage} data-id={i}>
+                    <img src={item.link} alt='' />
+                  </div>
+                ))}
+            </div>
+
+            {selectedItems &&
+              selectedItems.length > 0 &&
+              selectedItems.map((item, i) => (
+                <div className={styles['selecting-item']} key={i}>
+                  <div className={styles['select-item-image']}>
+                    <img src={item.thumb} alt='' />
+                  </div>
+                  <div className={styles['select-item-name']}>{item.name}</div>
+                  <input
+                    placeholder='量を入力'
+                    type='text'
+                    onChange={(e) => handleQuantityInputChange(e, i)}
+                    className={styles['quantity-input']}
+                  />
+                  <input
+                    type='date'
+                    className={styles['date-input']}
+                    onChange={(e) => handleDateInputChange(e, i)}
+                  ></input>
+                </div>
+              ))}
+            {selectedItems.length > 0 && (
+              <button className={styles['add-fridge-item']} onClick={addItemToFridge}>
+                冷蔵庫に入れる
+              </button>
+            )}
+          </div>
+
+          {fridgeItems && fridgeItems.length > 0 && (
+            <div className={styles['fridge']}>
+              {fridgeItems.map((item, i) => (
+                <div className={styles['fridge-item']} key={i}>
+                  <div className={styles['fridge-item-image']}>
+                    <img src={item.thumb} alt='' />
+                  </div>
+
+                  <div className={styles['fridge-item-info']}>
+                    <div className={styles['fridge-item-info-top']}>
+                      <div className={styles['fridge-item-name']}>{item.name}</div>
+                      <div className={styles['fridge-item-quantity']}>{item.quantity}</div>
+                    </div>
+                    <div className={styles['fridge-item-date']}>
+                      賞味期限：<span>{item.expiryDate}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </main>
